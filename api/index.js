@@ -1,6 +1,6 @@
 // api/index.js
 // Multi-key: team6months, abhay2, abhay3, abhay4, abhay5
-const VALID_KEYS = ['123', 'abhay2', 'abhay3', 'abhay4', 'abhay5'];
+const VALID_KEYS = ['team6months', 'abhay2', 'abhay3', 'abhay4', 'abhay5'];
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
