@@ -1,6 +1,6 @@
 // api/index.js
 // Multi-key: team6months, abhay2, abhay3, abhay4, abhay5
-const VALID_KEYS = ['12345', 'abhay2', 'abhay3', 'abhay4', 'abhay5'];
+const VALID_KEYS = ['team6months', 'abhay2', 'abhay3', 'abhay4', 'abhay5'];
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -57,7 +57,7 @@ export default async function handler(req, res) {
     
     // Check if target returned error or no data
     const hasError = rawText.includes('❌ Missing number') || 
-                     rawText.includes('error') ||
+                     rawText.includes('No data found') ||
                      rawText.length < 50;
     
     // --- Parse the scraped text into JSON structure ---
@@ -85,15 +85,15 @@ export default async function handler(req, res) {
       }
     }
 
-    // If parsing failed or no results, attach raw response only (NO FOOTER)
+    // If parsing failed or no results, return without raw field (NO raw, NO footer)
     if (result.results.length === 0) {
       result.status = "no_results";
-      result.warning = "Could not parse structured data or no data found for this number";
-      result.raw = rawText;
-      // ❌ NO FOOTER - removed completely
+      result.message = "No data found for this number";
+      // ❌ NO 'raw' field - removed completely
+      // ❌ NO footer - removed completely
     }
 
-    // Developer credit always present (NO FOOTER)
+    // Developer credit always present
     result.developer = "abhay singh";
 
     return res.status(200).json(result);
@@ -105,7 +105,8 @@ export default async function handler(req, res) {
       developer: "abhay singh",
       error: "Failed to fetch from target",
       details: error.message
-      // ❌ NO FOOTER - removed completely
+      // ❌ NO raw field
+      // ❌ NO footer
     });
   }
 }
