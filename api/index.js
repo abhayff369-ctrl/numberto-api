@@ -1,5 +1,5 @@
 // api/index.js
-// Multi-key: abhay1, abhay2, abhay3, abhay4, abhay5
+// Multi-key: team6months, abhay2, abhay3, abhay4, abhay5
 const VALID_KEYS = ['team6months', 'abhay2', 'abhay3', 'abhay4', 'abhay5'];
 
 export default async function handler(req, res) {
@@ -32,7 +32,7 @@ export default async function handler(req, res) {
   if (!number) {
     return res.status(400).json({ 
       error: 'Missing number parameter',
-      usage: '?api_key=abhay1&number=9876543210',
+      usage: '?api_key=team6months&number=9876543210',
       developer: 'abhay singh'
     });
   }
@@ -54,43 +54,47 @@ export default async function handler(req, res) {
     });
 
     let rawText = await response.text();
-
-    // --- Parse the scraped text into JSON structure ---
-    // Based on example format. The actual output from exploitsindia.site may differ.
-    // This parser extracts sections like:
-    // Lookup Result for: 9876543210
-    // 👤 Name: ...
-    // 👨‍👦 Father Name: ...
-    // etc.
     
+    // Check if target returned error or no data
+    const hasError = rawText.includes('❌ Missing number') || 
+                     rawText.includes('error') ||
+                     rawText.length < 50;
+    
+    // --- Parse the scraped text into JSON structure ---
     const result = {
-      status: "success",
-      developer: "abhay singh",   // Required credit
+      status: hasError ? "no_results" : "success",
+      developer: "abhay singh",
       queried_number: number,
       timestamp: new Date().toISOString(),
       results: []
     };
 
-    // Split by "📌 Additional Result:" or similar delimiters
-    // Assuming each person block starts with "👤 Name:" or "📌 Additional Result:"
-    const blocks = rawText.split(/📌 Additional Result:/i);
-    
-    // First block (main result)
-    const mainBlock = blocks[0];
-    const mainPerson = parsePersonBlock(mainBlock);
-    if (mainPerson) result.results.push(mainPerson);
-    
-    // Additional blocks
-    for (let i = 1; i < blocks.length; i++) {
-      const person = parsePersonBlock(blocks[i]);
-      if (person) result.results.push(person);
+    if (!hasError) {
+      // Parse blocks only if no error
+      const blocks = rawText.split(/📌 Additional Result:/i);
+      
+      // First block (main result)
+      const mainBlock = blocks[0];
+      const mainPerson = parsePersonBlock(mainBlock);
+      if (mainPerson) result.results.push(mainPerson);
+      
+      // Additional blocks
+      for (let i = 1; i < blocks.length; i++) {
+        const person = parsePersonBlock(blocks[i]);
+        if (person) result.results.push(person);
+      }
     }
 
-    // If parsing fails or no results, return raw as fallback in error field
+    // If parsing failed or no results, attach raw response only (NO FOOTER)
     if (result.results.length === 0) {
-      result.warning = "Could not parse structured data. Raw response attached.";
+      result.status = "no_results";
+      result.warning = "Could not parse structured data or no data found for this number";
       result.raw = rawText;
+      // ❌ NO FOOTER - removed completely
     }
+
+    // Developer credit always present (NO FOOTER)
+    result.developer = "abhay singh";
 
     return res.status(200).json(result);
 
@@ -101,6 +105,7 @@ export default async function handler(req, res) {
       developer: "abhay singh",
       error: "Failed to fetch from target",
       details: error.message
+      // ❌ NO FOOTER - removed completely
     });
   }
 }
