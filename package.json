@@ -1,10 +1,9 @@
 {
-  "name": "exploits-scraper",
-  "version": "2.0.0",
+  "name": "number-lookup-api",
+  "version": "3.0.0",
   "type": "module",
   "scripts": {
     "dev": "vercel dev",
     "deploy": "vercel --prod"
-  },
-  "dependencies": {}
+  }
 }
