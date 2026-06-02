@@ -1,7 +1,3 @@
-
-## Fixed API Code – Works with New JSON API
-
-```javascript
 // api/index.js
 // Multi-key: team6months, abhay2, abhay3, abhay4, abhay5
 const VALID_KEYS = ['team6months', 'abhay2', 'abhay3', 'abhay4', 'abhay5'];
@@ -57,7 +53,10 @@ export default async function handler(req, res) {
       }
     });
 
-    // Parse JSON response from target API
+    if (!response.ok) {
+      throw new Error(`API returned ${response.status}`);
+    }
+
     const data = await response.json();
     
     // Check if target returned error or no data
@@ -73,28 +72,55 @@ export default async function handler(req, res) {
     };
 
     if (!hasError && data.results && data.results.length > 0) {
-      // Transform each result to match desired format
+      // Use a Map to track unique entries (by id or by name+fname+address)
+      const uniqueMap = new Map();
+      
       for (const item of data.results) {
-        const transformedPerson = {
-          name: item.name ? item.name.trim() : null,
-          father_name: item.fname ? item.fname.trim() : null,
-          mobile: item.mobile,
-          address: item.address ? item.address.trim() : null,
-          circle: item.circle,
-          alternate_number: item.alt,
-          aadhaar: item.id && item.id !== 'xxxx-xxxx-5107' ? item.id : null,
-          email: item.email
-        };
+        // Create a unique key - prioritize id if available, otherwise combine fields
+        let uniqueKey;
+        if (item.id && item.id !== 'xxxx-xxxx-5107' && item.id !== 'null') {
+          uniqueKey = item.id;
+        } else {
+          uniqueKey = `${item.name || ''}|${item.fname || ''}|${item.address || ''}`;
+        }
         
-        // Remove null/empty fields
-        Object.keys(transformedPerson).forEach(key => {
-          if (transformedPerson[key] === null || transformedPerson[key] === undefined || transformedPerson[key] === '') {
-            delete transformedPerson[key];
+        // Only add if not already in map
+        if (!uniqueMap.has(uniqueKey)) {
+          // Transform each result to match desired format
+          const transformedPerson = {};
+          
+          if (item.name && item.name.trim()) {
+            transformedPerson.name = item.name.trim();
           }
-        });
-        
-        result.results.push(transformedPerson);
+          if (item.fname && item.fname.trim()) {
+            transformedPerson.father_name = item.fname.trim();
+          }
+          if (item.mobile) {
+            transformedPerson.mobile = item.mobile;
+          }
+          if (item.address && item.address.trim()) {
+            transformedPerson.address = item.address.trim();
+          }
+          if (item.circle) {
+            transformedPerson.circle = item.circle;
+          }
+          if (item.alt && item.alt !== 'null') {
+            transformedPerson.alternate_number = item.alt;
+          }
+          if (item.id && item.id !== 'xxxx-xxxx-5107' && item.id !== 'null') {
+            transformedPerson.aadhaar = item.id;
+          }
+          if (item.email && item.email !== 'null') {
+            transformedPerson.email = item.email;
+          }
+          
+          uniqueMap.set(uniqueKey, transformedPerson);
+        }
       }
+      
+      // Convert map values to array
+      result.results = Array.from(uniqueMap.values());
+      result.count = result.results.length;
     }
 
     // If no results, add message
