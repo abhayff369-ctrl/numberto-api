@@ -1,3 +1,7 @@
+
+## Fixed API Code – Works with New JSON API
+
+```javascript
 // api/index.js
 // Multi-key: team6months, abhay2, abhay3, abhay4, abhay5
 const VALID_KEYS = ['team6months', 'abhay2', 'abhay3', 'abhay4', 'abhay5'];
@@ -49,18 +53,17 @@ export default async function handler(req, res) {
     const response = await fetch(targetUrl, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (compatible; VercelBot/1.0)',
-        'Accept': 'text/html,text/plain'
+        'Accept': 'application/json, text/plain, */*'
       }
     });
 
-    let rawText = await response.text();
+    // Parse JSON response from target API
+    const data = await response.json();
     
     // Check if target returned error or no data
-    const hasError = rawText.includes('❌ Missing number') || 
-                     rawText.includes('No data found') ||
-                     rawText.length < 50;
+    const hasError = !data.status || data.count === 0 || !data.results || data.results.length === 0;
     
-    // --- Parse the scraped text into JSON structure ---
+    // Prepare result in desired format
     const result = {
       status: hasError ? "no_results" : "success",
       developer: "abhay singh",
@@ -69,32 +72,36 @@ export default async function handler(req, res) {
       results: []
     };
 
-    if (!hasError) {
-      // Parse blocks only if no error
-      const blocks = rawText.split(/📌 Additional Result:/i);
-      
-      // First block (main result)
-      const mainBlock = blocks[0];
-      const mainPerson = parsePersonBlock(mainBlock);
-      if (mainPerson) result.results.push(mainPerson);
-      
-      // Additional blocks
-      for (let i = 1; i < blocks.length; i++) {
-        const person = parsePersonBlock(blocks[i]);
-        if (person) result.results.push(person);
+    if (!hasError && data.results && data.results.length > 0) {
+      // Transform each result to match desired format
+      for (const item of data.results) {
+        const transformedPerson = {
+          name: item.name ? item.name.trim() : null,
+          father_name: item.fname ? item.fname.trim() : null,
+          mobile: item.mobile,
+          address: item.address ? item.address.trim() : null,
+          circle: item.circle,
+          alternate_number: item.alt,
+          aadhaar: item.id && item.id !== 'xxxx-xxxx-5107' ? item.id : null,
+          email: item.email
+        };
+        
+        // Remove null/empty fields
+        Object.keys(transformedPerson).forEach(key => {
+          if (transformedPerson[key] === null || transformedPerson[key] === undefined || transformedPerson[key] === '') {
+            delete transformedPerson[key];
+          }
+        });
+        
+        result.results.push(transformedPerson);
       }
     }
 
-    // If parsing failed or no results, return without raw field (NO raw, NO footer)
+    // If no results, add message
     if (result.results.length === 0) {
       result.status = "no_results";
       result.message = "No data found for this number";
-      // ❌ NO 'raw' field - removed completely
-      // ❌ NO footer - removed completely
     }
-
-    // Developer credit always present
-    result.developer = "abhay singh";
 
     return res.status(200).json(result);
 
@@ -105,51 +112,6 @@ export default async function handler(req, res) {
       developer: "abhay singh",
       error: "Failed to fetch from target",
       details: error.message
-      // ❌ NO raw field
-      // ❌ NO footer
     });
-  }
-}
-
-// Helper function to parse a person block from text
-function parsePersonBlock(blockText) {
-  try {
-    const person = {};
-    
-    // Extract Name
-    const nameMatch = blockText.match(/👤\s*Name:\s*(.+?)(?:\n|$)/i);
-    if (nameMatch) person.name = nameMatch[1].trim();
-    
-    // Extract Father Name
-    const fatherMatch = blockText.match(/👨‍👦\s*Father\s*Name:\s*(.+?)(?:\n|$)/i);
-    if (fatherMatch) person.father_name = fatherMatch[1].trim();
-    
-    // Extract Mobile
-    const mobileMatch = blockText.match(/📱\s*Mobile:\s*(\d+)/i);
-    if (mobileMatch) person.mobile = mobileMatch[1];
-    
-    // Extract Address
-    const addressMatch = blockText.match(/🏠\s*Address:\s*(.+?)(?:\n|$)/i);
-    if (addressMatch) person.address = addressMatch[1].trim();
-    
-    // Extract Circle
-    const circleMatch = blockText.match(/📡\s*Circle:\s*(.+?)(?:\n|$)/i);
-    if (circleMatch) person.circle = circleMatch[1].trim();
-    
-    // Extract Alternate number
-    const altMatch = blockText.match(/📞\s*Alternate:\s*(\d+)/i);
-    if (altMatch) person.alternate_number = altMatch[1];
-    
-    // Extract Aadhaar
-    const aadhaarMatch = blockText.match(/🪪\s*Aadhaar:\s*(\d+)/i);
-    if (aadhaarMatch) person.aadhaar = aadhaarMatch[1];
-    
-    // If at least name or mobile exists, return person
-    if (person.name || person.mobile) {
-      return person;
-    }
-    return null;
-  } catch (e) {
-    return null;
   }
 }
