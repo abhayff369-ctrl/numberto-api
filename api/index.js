@@ -43,7 +43,7 @@ export default async function handler(req, res) {
     });
   }
 
-  const targetUrl = `https://exploitsindia.site/api/number.php?exploits=${number}`;
+  const targetUrl = `https://believes-shore-funny-void.trycloudflare.com/search?q=${number}`;
 
   try {
     const response = await fetch(targetUrl, {
